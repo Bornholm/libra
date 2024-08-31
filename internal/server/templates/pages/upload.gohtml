@@ -1,0 +1,61 @@
+{{define "header"}}
+{{ template "nav" . }}
+<div id="message">
+  <h1>Votre fichier est prêt à être téléchargé !</h1>
+  <p>
+    Transmettez le lien ci-dessous au destinataire afin que celui ci puisse
+    récupérer votre fichier et déchiffrer automatiquement celui-ci:
+  </p>
+  <p>
+    <a
+      style="font-size: 0.8em; word-break: break-all"
+      id="download-link"
+      target="_blank"
+      href="{{ .BaseURL }}/dl/{{ .RemoteIdentifier }}"
+      >{{ .BaseURL }}/dl/{{ .RemoteIdentifier }}</a
+    >
+  </p>
+  <p>
+    <a id="copy-link" href="#" onClick="copyLink(event)">
+      <b>Copier le lien</b>
+    </a>
+  </p>
+</div>
+<script type="text/javascript">
+  const localIdentifier = "{{ .LocalIdentifier }}";
+  const key = sessionStorage.getItem(localIdentifier);
+
+  if (!key) {
+    showError();
+  } else {
+    const downloadLink = document.getElementById("download-link");
+    const url = downloadLink.href + "#" + encodeURIComponent(key);
+    downloadLink.href = downloadLink.innerText = url.trim();
+    window.onbeforeunload = function () {
+      sessionStorage.removeItem(localIdentifier);
+    };
+  }
+
+  function copyLink(event) {
+    const link = document.getElementById("download-link").href;
+    navigator.clipboard.writeText(link).then(
+      function () {
+        document.getElementById("copy-link").innerHTML = "<i>Lien copié !</i>";
+      },
+      function (err) {
+        console.error(err);
+        showError();
+      }
+    );
+  }
+
+  function showError() {
+    document.getElementById("message").innerHTML = `
+      <h1>Une erreur est survenue !</h1>
+      <p>
+        Veuillez réessayer d'envoyer votre fichier en <a href="{{ .BaseURL }}">cliquant ici.</a>
+      </p>
+    `;
+  }
+</script>
+{{ end }}

@@ -1,0 +1,58 @@
+{{define "header"}}
+{{ template "nav" . }}
+<section>
+  <article id="message">
+    <h2>Veuillez patienter...</h2>
+  </article>
+</section>
+<script type="text/javascript">
+  const remoteIdentifier = "{{ .RemoteIdentifier }}";
+  const rawKey = decodeURIComponent(window.location.hash);
+  const key = Libra.deserialize(rawKey);
+  const message = document.getElementById("message");
+
+  let fileInfo;
+
+  function retrieveFileInfo() {
+    fetch(`/dl/${remoteIdentifier}/info`, { method: "POST" })
+      .then((res) => res.arrayBuffer())
+      .then((data) => Libra.decrypt(data, key.key, key.ivs[1]))
+      .then((data) => {
+        const decoder = new TextDecoder("utf-8");
+        const rawInfo = decoder.decode(data);
+        fileInfo = JSON.parse(rawInfo);
+        message.innerHTML = `
+        <h2>Souhaitez vous télécharger le fichier <code>${fileInfo.name}</code> de type <code>${fileInfo.type}</code> ?</h2>
+        <p>
+          <a href="${window.location.hash}" onClick="downloadFile(event)">
+            <b>Si oui, cliquez ici</b>
+          </a>
+        </p>
+        <p><i>Le fichier sera automatiquement supprimé du serveur après téléchargement.</i></p>
+      `;
+      })
+      .catch((err) => {
+        console.error(err);
+        message.innerHTML = `
+        <h2>Une erreur est survenue !</h2>
+        <p>Il nous est impossible de retrouver le fichier demandé. Vérifiez que le lien est valide ou que le fichier n'a pas déjà été téléchargé.</p>
+      `;
+      });
+  }
+
+  function downloadFile(evt) {
+    fetch(`/dl/${remoteIdentifier}/data`, { method: "POST" })
+      .then((res) => res.arrayBuffer())
+      .then((data) => Libra.decrypt(data, key.key, key.ivs[0]))
+      .then((data) => {
+        const file = new File([data], fileInfo.name, {
+          type: fileInfo.type,
+        });
+        const url = URL.createObjectURL(file);
+        window.location = url;
+      });
+  }
+
+  retrieveFileInfo();
+</script>
+{{ end }}

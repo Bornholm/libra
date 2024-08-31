@@ -1,0 +1,24 @@
+.logo {
+  background: url(/logo.svg);
+  background-size: contain;
+  background-color: #d16143ff;
+  width: 100px;
+  aspect-ratio: 1/1;
+  border-radius: 100%;
+  background-position: center center;
+  border: 10px solid #d16143ff;
+}
+
+a.title {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  text-decoration: none !important;
+}
+
+a.title > h1 {
+  margin-left: 20px;
+  font-size: 3em;
+  font-style: normal;
+  color: initial;
+}

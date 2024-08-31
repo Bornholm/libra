@@ -1,0 +1,47 @@
+{{define "header"}}
+<script defer src="/upload.js"></script>
+{{ template "nav" .}}
+<h1>Partagez vos document en toute sécurité !</h1>
+<div
+  style="
+    display: flex;
+    align-items: center;
+    align-content: center;
+    flex-direction: row;
+    justify-content: center;
+  "
+>
+  <form
+    id="file-upload"
+    method="POST"
+    action="/upload"
+    enctype="multipart/form-data"
+  >
+    <label for="file">Sélectionnez votre fichier à envoyer</label>
+    <input type="file" name="file" id="file" onchange="processFile(event)" />
+    <input type="hidden" name="local-identifier" />
+    <p>
+      Taille maximum autorisée: <code>{{ .MaxUploadSize }}Mo</code>
+    </p>
+  </form>
+</div>
+{{ end }}
+
+{{ define "main"}}
+<section>
+  <aside>
+    <h3>La sécurité avant tout !</h3>
+    <p>
+      En utilisant Libra, les données ne quittent jamais votre poste sans que
+      celles ci soient chiffrées.
+    </p>
+    <p>Même nous ne pouvons savoir ce que vous avez envoyé !</p>
+  </aside>
+  <aside>
+    <h3>Données téléchargées ? Elles sont supprimées !</h3>
+    <p>
+      Téléchargées ou non, les données seront supprimées passé un délai de 24h.
+    </p>
+  </aside>
+</section>
+{{ end }}
