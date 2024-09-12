@@ -10,3 +10,6 @@ docker-images: $(foreach tag,$(DOCKER_IMAGES), docker-image-$(tag))
 
 docker-image-%:
 	docker build -t libra:$*-latest -f misc/docker/$*/Dockerfile .
+
+release:
+	curl -sfL https://goreleaser.com/static/run | bash -s -- release --auto-snapshot --clean
