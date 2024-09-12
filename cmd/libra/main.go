@@ -22,7 +22,7 @@ var (
 	rawLogLevel        string        = slog.LevelInfo.String()
 	maxUploadSize      int64         = 32 << 20
 	baseURL            string        = "http://localhost:8080"
-	storeDSN           string        = "memory://"
+	storeDSN           string        = "file://uploads"
 	fileTTL            time.Duration = 24 * time.Hour
 	cleanupJobInterval time.Duration = time.Hour
 )
