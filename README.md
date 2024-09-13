@@ -19,7 +19,7 @@
 make build
 ```
 
-Le binaire généré sera disponible dans le répertoire `./bin`.
+Le binaire généré sera disponible dans le répertoire `./bin`. Exécuter `./bin/libra -h` pour voir les options de configuration disponibles.
 
 #### Générer les différentes images Docker
 
