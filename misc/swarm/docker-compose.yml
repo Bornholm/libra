@@ -10,11 +10,15 @@ services:
       - ./certs/ca:/certs/ca
     ports:
       - 22376:2376
+      # Ajouter les ports publiés par vos services ici
+      - 8080:8080 # Port Libra
+      - 9001:9001 # Port Console Minio
     healthcheck:
       test: ["CMD", "docker", "info"]
       interval: 2s
       start_interval: 3s
     restart: on-failure
+
   worker-1:
     image: "docker:dind"
     privileged: true
@@ -32,6 +36,7 @@ services:
       test: ["CMD", "docker", "info"]
       interval: 2s
       start_interval: 3s
+
   worker-2:
     image: "docker:dind"
     privileged: true
@@ -49,6 +54,8 @@ services:
       test: ["CMD", "docker", "info"]
       interval: 2s
       start_interval: 3s
+
+  # Service d'initialisation du cluster Swarm
   swarm-init:
     image: "docker:dind"
     depends_on:
