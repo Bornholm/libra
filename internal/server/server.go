@@ -1,8 +1,8 @@
 package server
 
 import (
+	"context"
 	"embed"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/oc-docker/libra/internal/store"
+	"github.com/pkg/errors"
 	sloghttp "github.com/samber/slog-http"
 )
 
@@ -69,25 +70,25 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	identifier := r.PathValue("identifier")
 	if _, err := uuid.Parse(identifier); err != nil {
-		slog.Warn("could not parse identifier", slog.Any("error", err), slog.Any("identifier", identifier))
+		slog.Warn("could not parse identifier", slog.Any("error", errors.WithStack(err)), slog.Any("identifier", identifier))
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
-	reader, err := s.opts.Store.Reader(identifier + "." + part)
+	reader, err := s.opts.Store.Reader(r.Context(), identifier+"."+part)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 			return
 		}
 
-		slog.Error("could not open reader", slog.Any("error", err), slog.Any("identifier", identifier), slog.Any("part", part))
+		slog.Error("could not open reader", slog.Any("error", errors.WithStack(err)), slog.Any("identifier", identifier), slog.Any("part", part))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	if _, err := io.Copy(w, reader); err != nil {
-		slog.Error("could not copy data", slog.Any("error", err), slog.Any("identifier", identifier), slog.Any("part", part))
+		slog.Error("could not copy data", slog.Any("error", errors.WithStack(err)), slog.Any("identifier", identifier), slog.Any("part", part))
 		return
 	}
 
@@ -95,12 +96,12 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.opts.Store.Remove(identifier + ".data"); err != nil {
-		slog.Error("could not remove blob", slog.Any("error", err), slog.Any("identifier", identifier), slog.Any("part", "data"))
+	if err := s.opts.Store.Remove(context.Background(), identifier+".data"); err != nil {
+		slog.Error("could not remove blob", slog.Any("error", errors.WithStack(err)), slog.Any("identifier", identifier), slog.Any("part", "data"))
 	}
 
-	if err := s.opts.Store.Remove(identifier + ".info"); err != nil {
-		slog.Error("could not remove blob", slog.Any("error", err), slog.Any("identifier", identifier), slog.Any("part", "info"))
+	if err := s.opts.Store.Remove(context.Background(), identifier+".info"); err != nil {
+		slog.Error("could not remove blob", slog.Any("error", errors.WithStack(err)), slog.Any("identifier", identifier), slog.Any("part", "info"))
 	}
 }
 
@@ -132,25 +133,35 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	writeFile := func(fileHeader *multipart.FileHeader, ext string) error {
 		file, err := fileHeader.Open()
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				slog.Error("could not close file", slog.Any("error", errors.WithStack(err)))
+			}
+		}()
 
 		filename := remoteIdentifier + ext
 
 		slog.Debug("writing file", slog.Any("filename", filename))
 
-		writer, err := s.opts.Store.Writer(filename)
+		writer, err := s.opts.Store.Writer(r.Context(), filename)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
-		defer writer.Close()
+		defer func() {
+			if err := writer.Close(); err != nil {
+				slog.Error("could not close writer", slog.Any("error", errors.WithStack(err)))
+			}
+		}()
 
 		if _, err := io.Copy(writer, file); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
+
+		slog.Debug("file written", slog.Any("filename", filename))
 
 		return nil
 	}
@@ -162,7 +173,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := writeFile(fileHeader, ".data"); err != nil {
-		slog.Error("could not write file", slog.Any("error", err))
+		slog.Error("could not write file", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -174,7 +185,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := writeFile(fileHeader, ".info"); err != nil {
-		slog.Error("could not write file", slog.Any("error", err))
+		slog.Error("could not write file", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}

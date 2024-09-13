@@ -2,19 +2,12 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"io/fs"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/oc-docker/libra/internal/server"
-	"github.com/oc-docker/libra/internal/store"
-	aferostore "github.com/oc-docker/libra/internal/store/afero"
-	"github.com/spf13/afero"
 )
 
 var (
@@ -69,73 +62,5 @@ func main() {
 	if err := http.ListenAndServe(address, server); err != nil {
 		slog.Error("could not listen", slog.Any("error", err))
 		os.Exit(1)
-	}
-}
-
-func createStoreFromDSN(dsn string) (store.Store, error) {
-	url, err := url.Parse(dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	var fs afero.Fs
-
-	switch url.Scheme {
-	case "file":
-		path, err := filepath.Abs(filepath.Clean(url.Host + url.Path))
-		if err != nil {
-			return nil, err
-		}
-
-		fs = afero.NewBasePathFs(afero.NewOsFs(), path)
-
-	case "memory":
-		fs = afero.NewMemMapFs()
-
-	default:
-		return nil, fmt.Errorf("could not find store implementation for scheme '%s'", url.Scheme)
-	}
-
-	go runCleanJob(fs)
-
-	return aferostore.NewStore(fs), nil
-}
-
-func runCleanJob(afs afero.Fs) {
-	ticker := time.NewTicker(cleanupJobInterval)
-	for {
-		slog.Info("starting cleanup job", slog.Any("interval", cleanupJobInterval), slog.Any("ttl", fileTTL))
-
-		treshold := time.Now().Add(-fileTTL)
-
-		err := afero.Walk(afs, "", func(path string, info fs.FileInfo, err error) error {
-			if info.IsDir() {
-				return nil
-			}
-
-			modtime := info.ModTime()
-			filename := info.Name()
-
-			slog.Debug("checking file", slog.Any("filename", filename), slog.Any("modtime", modtime))
-
-			if modtime.After(treshold) {
-				return nil
-			}
-
-			slog.Info("deleting file", slog.Any("filename", filename), slog.Any("modtime", modtime))
-
-			if err := afs.Remove(filename); err != nil {
-				slog.Error("could not remove file", slog.Any("filename", filename))
-			}
-
-			return nil
-		})
-		if err != nil {
-			slog.Error("could not walk filesystem", slog.Any("error", err))
-		}
-
-		slog.Info("cleanup job finished", slog.Any("next", time.Now().Add(cleanupJobInterval)))
-
-		<-ticker.C
 	}
 }
