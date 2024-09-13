@@ -1,0 +1,72 @@
+services:
+  manager:
+    image: "docker:dind"
+    privileged: true
+    hostname: manager
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - ./certs/client:/certs/client
+      - ./certs/ca:/certs/ca
+    ports:
+      - 22376:2376
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 2s
+      start_interval: 3s
+    restart: on-failure
+  worker-1:
+    image: "docker:dind"
+    privileged: true
+    hostname: worker-1
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    restart: on-failure
+    depends_on:
+      manager:
+        condition: service_healthy
+    volumes:
+      - ./certs/client:/certs/client
+      - ./certs/ca:/certs/ca
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 2s
+      start_interval: 3s
+  worker-2:
+    image: "docker:dind"
+    privileged: true
+    hostname: worker-2
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    restart: on-failure
+    depends_on:
+      manager:
+        condition: service_healthy
+    volumes:
+      - ./certs/client:/certs/client
+      - ./certs/ca:/certs/ca
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 2s
+      start_interval: 3s
+  swarm-init:
+    image: "docker:dind"
+    depends_on:
+      manager:
+        condition: service_healthy
+      worker-1:
+        condition: service_healthy
+      worker-2:
+        condition: service_healthy
+    environment:
+      DOCKER_TLS_CERTDIR: /certs
+    volumes:
+      - ./certs/client:/certs/client
+      - ./certs/ca:/certs/ca
+    command: >
+      sh -x -e -c "
+      docker --tls -H manager:2376 swarm init
+      && token=$$(docker --tls -H manager:2376 swarm join-token -q worker)
+      && docker --tls -H worker-1:2376 swarm join --token $${token} manager:2377
+      && docker --tls -H worker-2:2376 swarm join --token $${token} manager:2377
+      "
