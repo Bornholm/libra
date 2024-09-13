@@ -1,5 +1,9 @@
 FROM golang:1.23 AS build
 
+COPY go.mod go.sum /src/
+
+RUN cd /src && go mod download
+
 RUN apt-get update
 RUN apt-get install -y make
 
