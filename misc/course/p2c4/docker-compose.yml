@@ -1,0 +1,49 @@
+services:
+  # On déclare notre service Minio, qui exposera sa console
+  # d'administration sur http://localhost:9001
+  #
+  # Les identifiants d'administration seront:
+  # - Utilisateur: minio
+  # - Mot de passe: NotSoSecret
+  #
+  # Les données stockées par le service Minio seront placées
+  # dans le répertoire /data, qui utilisera un volume nommé
+  # "minio_storage".
+  minio:
+    image: minio/minio
+    ports:
+      - 9001:9001
+    volumes:
+      - minio_storage:/data
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: NotSoSecret
+    command: server --console-address ":9001" /data
+
+  # On déclare le service "libra", utilisant l'image "libra:latest"
+  # construite lors de l'exercice précédant.
+  libra:
+    image: ghcr.io/bornholm/libra:0.0.3
+    # L'application Libra sera disponible sur http://localhost:8080
+    ports:
+      - 8080:8080
+    environment:
+      # On configure Libra afin qu'elle utilise le service "minio"
+      # Voir le fichier cmd/libra/store.go dans les sources de l'application
+      # pour plus d'informations.
+      LIBRA_STORE_DSN: s3://minio:NotSoSecret@minio:9000/libra
+
+    # Configuration spécifique pour Docker Swarm
+    deploy:
+      # Déploiement de 3 instances de l'application
+      replicas: 3
+      update_config:
+        # On met à jour les conteneurs Libra un à un
+        parallelism: 1
+        # Un délai de 5s secondes entre chaque mise à jour de conteneur
+        # est respecté
+        delay: 5s
+
+# On déclare les volumes utilisés par nos différents services.
+volumes:
+  minio_storage:
